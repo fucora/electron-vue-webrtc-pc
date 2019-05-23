@@ -4,7 +4,7 @@ import store from '../store/index.js';
 import {common} from './common.js';
 import { environment } from '../config/environment';
 // let apiBase = (sessionStorage.getItem('baseUrl') || environment.apiBase) + '/appapi';
-let apiBase = process.env.VUE_APP_BASE_URL + '/appapi';
+let apiBase = environment.apiBase + '/appapi';
 
 let allCookies;
 export const tokenService = {
@@ -13,11 +13,12 @@ export const tokenService = {
         const locAccessToken = common.getLocstorage('uc_access_token') //allCookies['uc_access_token']; //$cookies.get('uc_access_token');
         return 'Bearer ' + locAccessToken;
     },
-
+   
     // 刷新access_token
     refreshToken() {
-        allCookies = common.getLocstorage('uc_loginData')//store.getters('userCookies/getAllCookies');
-        const tokenData = 'grant_type=refresh_token&scope=web&client_id=2513608755203&client_secret=32b42c8d694d520d3e321&refresh_token=' + allCookies['refresh_token'];//$cookies.get('uc_refresh_token');
+        // allCookies = common.getLocstorage('uc_loginData')//store.getters('userCookies/getAllCookies');
+        const _refreshToken = common.getLocstorage('uc_refresh_token');
+        const tokenData = 'grant_type=refresh_token&scope=web&client_id=2513608755203&client_secret=32b42c8d694d520d3e321&refresh_token=' + _refreshToken;//$cookies.get('uc_refresh_token');
         // const headers = new Headers({ 'Content-Type': 'application/x-www-form-urlencoded' });
 
         return axios.post(apiBase + '/oauth/token', tokenData)
@@ -36,8 +37,10 @@ export const tokenService = {
                 _data.forEach((item)=>{
                     store.dispatch('userCookies/asynSetCookies', item)
                 })
-                common.setLocstorage('uc_isLogin', true)
+                common.setLocstorage('uc_expires_in', data.expires_in)
                 common.setLocstorage('uc_access_token', data.access_token)
+                common.setLocstorage('uc_refresh_token', data.refresh_token)
+                
             })
             .catch(err => {
                 // console.log(err)

@@ -7,7 +7,7 @@
         <el-option
           v-for="item in options"
           :key="item.value"
-          :label="item.name"
+          :label="item.label"
           :value="item.value">
         </el-option>
       </el-select>
@@ -17,34 +17,44 @@
 </template>
 
 <script>
+import { common } from '../../util/common';
 export default {
   name: "definitionPage",
   data() {
     return {
       options: [{
-          value: '256',
+          value: '192',
           label: '256kbps',
-          name: '初级清晰度'
         }, {
-          value: '576',
-          label: '576kbps',
-          name: '标准清晰度'
+          value: '448',
+          label: '512kbps',
         }, {
-          value: '1264',
-          label: '1264kbps',
-          name: '高级清晰度'
+          value: '704',
+          label: '768kbps',
         }, {
-          value: '2464',
-          label: '2464kbps',
-          name: '超高清晰度'
+          value: '958',
+          label: '1024kbps',
+        }, {
+          value: '1984',
+          label: '2048kbps',
+        }, {
+          value: '2496',
+          label: '2560kbps',
+        }, {
+          value: '3008',
+          label: '3072kbps',
+        }, {
+          value: '4032',
+          label: '4096kbps',
         }],
-        resolution: '576'
+        resolution: '958' // 默认带宽
     }
   },
   methods: {
     setResolution() {
       console.log('setResolution====>', this.resolution)
-      this.$store.commit("setResolution",this.resolution);
+      this.$store.commit("setResolution", this.resolution);
+      common.setLocstorage('defaultBandwidth', this.resolution)
     }
   }
 };

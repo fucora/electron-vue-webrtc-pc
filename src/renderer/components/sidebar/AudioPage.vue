@@ -30,6 +30,7 @@
 
 <script>
 import { mapGetters } from 'vuex';
+import {common} from '../../util/common'
 export default {
   name: "audioPage",
   data() {
@@ -59,10 +60,13 @@ export default {
       // 默认选中第一个
       this.audioForm.audioSource = this.deviceInfo.audioSource;
       this.audioForm.audioOutput = this.deviceInfo.audioOutput;
+      common.setLocstorage('audioSourceId', this.deviceInfo.audioSource)
+      common.setLocstorage('audioOutputId', this.deviceInfo.audioOutput)
     },
     // 选择麦克风/扬声器
     chooseDevicesFn(type, deviceid) {
       this.$store.commit("devicesInfo/setDevices", {name: type, value: deviceid});
+      common.setLocstorage(type+'Id', deviceid)
     }
   },
   created() {

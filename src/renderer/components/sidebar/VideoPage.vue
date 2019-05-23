@@ -17,6 +17,7 @@
 
 <script>
 import { mapGetters } from 'vuex';
+import { common } from '../../util/common';
 
 export default {
   name: "videoPage",
@@ -38,10 +39,13 @@ export default {
     _gotDevices(){
       // 默认选中第一个
       this.videoSource = this.deviceInfo.videoSource;
+      common.setLocstorage('videoSourceId', this.videoSource)
     },
     // 选择摄像头
     chooseDevicesFn(type, deviceid) {
       this.$store.commit("devicesInfo/setDevices", {name: type, value: deviceid});
+      common.setLocstorage('videoSourceId', deviceid)
+      console.log(type, deviceid)
     }
   },
   created() {

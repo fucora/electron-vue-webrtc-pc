@@ -4,7 +4,7 @@
       <el-col class="main" :span="18">
         <div class="middle">
           <div class="video">
-            <video id="localVideo" class="localvideo" autoplay></video>
+            <video muted id="localVideo" class="localvideo" autoplay></video>
           </div>
         </div>
         <div class="setup">
@@ -17,6 +17,8 @@
     </el-row>
 
     <Sidebar ref="sidebar"/>
+
+    
   </div>
 </template>
 
@@ -26,6 +28,8 @@ import JoinMeeting from "@/components/JoinMeeting.vue";
 import getUserMedia from '../util/webrtc/getUserMedia';
 import getMediaDevices from '../util/webrtc/getMediaDevices'
 import { mapState, mapGetters, mapActions } from 'vuex';
+import {common} from '../util/common';
+
 //import {boxNotification} from '../config/messagebox'
 
 export default {
@@ -120,7 +124,9 @@ export default {
           this.deviceList.videoSelect.push(deviceInfo);
         }
       }
+      console.log('asynDevicesInfoList',this.deviceList)
       this.$store.dispatch('devicesInfo/asynDevicesInfoList', this.deviceList);
+
       // 默认选择第一个设备
       this.setDefaultDevice('audioSource', this.deviceList.audioInputSelect[0].deviceId);
       this.setDefaultDevice('audioOutput', this.deviceList.audioOutputSelect[0].deviceId);
@@ -128,7 +134,9 @@ export default {
     },
     setDefaultDevice(type, deviceid) {
       this.$store.commit("devicesInfo/setDevices", {name: type, value: deviceid});
-    }
+    },
+
+  
 
   },
   watch: {
@@ -158,6 +166,10 @@ export default {
   },
   created() {
     console.log("进入index");
+    // 默认带宽
+    // common.setLocstorage('defaultBandwidth', 958)
+    common.setLocstorage('screenshareFrameRate', 5)
+    
   },
   mounted() {
     console.log("index加载完成");

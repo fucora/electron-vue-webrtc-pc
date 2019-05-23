@@ -382,40 +382,29 @@ let tool = require('./tool').default;
     //   var mutateOffer = {'call_type': 'WEBRTC', 'sdp': sdp}
     // }
     // var mutateOffer = {'call_type': 'WEBRTC', 'sdp': sdp}
+    console.log('Call_calls======', self.parent.call_uuid, self.parent )
     var request = state == 'UPDATING' ? 'calls/' + self.parent.call_uuid + '/update' : 'calls';
     self.sendRequestCall(request, sdp, function(e){
       cb(e)
     })
   }
-  // pexPort.prototype.processAnswer = function (sdp) {
-  //   var self = this;
-  //   peerConnection.processAnswer(sdp, function(){
-  //     console.log("Remote description active");
-  //     self.Call_ack();
-  //   })
-  // }
-
   pexPort.prototype.Call_ack = function(cb) {
     var self = this;
-    console.log("Remote description active");
+    // console.log("Remote description active");
 
-    if (self.parent.recv_audio === false && self.parent.recv_video === false && self.parent.chrome_ver > 47 && self.parent.localStream) {
-      peerConnection.pcAddStream([self.parent.localStream]);
-    }
-    self.sendRequestCall('calls/' + self.parent.call_uuid + '/ack', null, function() {
+    // if (self.parent.recv_audio === false && self.parent.recv_video === false && self.parent.chrome_ver > 47 && self.parent.localStream) {
+    //   peerConnection.pcAddStream([self.parent.localStream]);
+    // }
+    self.sendRequestCall('calls/' + self.parent.call.call_uuid + '/ack', null, function() {
       // TODO
       cb();
-      console.log('ack接口返回', self.parent.state)
+      console.log('ack接口返回', self.parent)
     });
   }
   pexPort.prototype.Call_disconnect = function (cb) {
     var self = this;
-    if (self.parent.state != 'DISCONNECTING') {
-      self.parent.state = 'DISCONNECTING';
-      if(self.parent.token) {
-        self.sendRequestCall('calls/' + self.parent.call_uuid + '/disconnect', {}, cb);
-      }
-    }
+    console.log('Call_disconnect', self.parent.call.call_uuid, self.parent)
+    self.sendRequestCall('calls/' + self.parent.call.call_uuid + '/disconnect', {}, cb);
   }
   pexPort.prototype.sendRequestCall = function(request, params, cb, retries) {
     var self = this;

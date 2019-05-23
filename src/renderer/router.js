@@ -2,6 +2,8 @@ import Vue from 'vue'
 import Router from 'vue-router'
 import Index from './views/Index.vue'
 import Meeting from './views/Meeting.vue'
+import Presentation from './views/presentationWindow.vue'
+import Screen from './views/screenWindow.vue'
 import LoginPage from './components/sidebar/LoginPage.vue'
 import VideoPage from './components/sidebar/VideoPage.vue'
 import AudioPage from './components/sidebar/AudioPage.vue';
@@ -47,6 +49,16 @@ export default new Router({
       path: '/meeting',
       name: 'meeting',
       component: Meeting
+    },
+    {
+      path: '/presentation',
+      name: 'presentation',
+      component: Presentation
+    },
+    {
+      path: '/screen',
+      name: 'screen',
+      component: Screen
     },
     {
       path: '',

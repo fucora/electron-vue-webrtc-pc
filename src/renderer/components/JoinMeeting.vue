@@ -26,6 +26,7 @@ import rtc from '../util/webrtc/lib/svocRTC';
 import { xmpp } from '../util/xmpp.js';
 import { conferenceApi } from '../server/api.js';
 import { mapState, mapGetters, mapActions } from 'vuex';
+import { tokenService } from '../util/tokenService';
 
 
 export default {
@@ -43,7 +44,7 @@ export default {
         host: '', // 请求pex的接口地址  webRtcAddress
         pin: '', // pin
         call_type: 'video',
-        bw: ''
+        bw: 576
       }
     };
   },
@@ -63,7 +64,7 @@ export default {
     // 判断检测是否为匿名入会
     checkAnonymous() {
       // 检查是否存在历史呼叫记录
-      this.meetingInfoData.conference = this.$cookies.get('prevConferenceNum');
+      this.meetingInfoData.conference = sessionStorage.getItem('prevConferenceNum');
       let isAnonymous = this.$store.state.isLoggedIn && this.$store.state.loginData;
       // 匿名用户 调用接口获取getJwtToken
       if(!isAnonymous) {
@@ -79,10 +80,13 @@ export default {
             xmppServer: res.xmppServer
           };
           this.$store.dispatch('asyncXmppData', _xmppdata);
-
+          common.setLocstorage('xmppCookieData', _xmppdata);
           this.meetingInfoData.host = res.webRtcAddress;
           this.meetingInfoData.name = res.apiUserId.toString();
           console.log("meetingInfoData 匿名用户 ----", this.meetingInfoData)
+        }).then(() =>{
+          // 接口获取 turn_server
+          conferenceApi.getTurnServer();
         })
       } else {
         // 已登录用户 调用接口获取getJwtToken
@@ -91,11 +95,13 @@ export default {
           this.meetingInfoData.host = data.webRtcAddress;
           this.meetingInfoData.realName = data.realName;
           this.meetingInfoData.name = data.apiUserId.toString();
+        }).then(() =>{
+          // 接口获取 turn_server
+          conferenceApi.getTurnServer();
         });
         console.log("meetingInfoData 已登录用户----", this.meetingInfoData)
       }
-      // 接口获取 turn_server
-      conferenceApi.getTurnServer();
+      
     }, 
 
     // 加入会议按钮操作
@@ -123,7 +129,7 @@ export default {
         // 2.将加入会议返回的数据 异步保存到状态管理器 
         _this.$store.dispatch('asyncConferenceRoleData', res);
         // 初始化rtc api请求，request_token;
-        rtc.init(this.meetingInfoData.host, this.meetingInfoData.conference, this.meetingInfoData.name, this.meetingInfoData.pin);
+        rtc.init(this.meetingInfoData.host, this.meetingInfoData.conference, this.meetingInfoData.name, this.meetingInfoData.pin, this.meetingInfoData.bw );
         // 赋值设备id
         this.meetingInfoData.audioSourceId = this._divecesIds.audioSource;
         this.meetingInfoData.videoSourceId = this._divecesIds.videoSource;
@@ -142,7 +148,7 @@ export default {
         }).then((res) => {
 
           // 4.将当前呼叫的会议室加入历史记录，并保存到cookie，便于下次呼叫自动填充
-          this.$cookies.set('prevConferenceNum', this.meetingInfoData.conference);
+          sessionStorage.setItem('prevConferenceNum', this.meetingInfoData.conference);
         });
 
         // 5.获取参会者列表数据
@@ -153,8 +159,18 @@ export default {
         })
       }).catch((err) => {
         // error处理
-        _this.Hint(err.msg, 'error');
+        _this.$notification('错误', err.msg)
+        console.log(err.msg);
       })
+    },
+
+    // 定时刷新token
+    IntervalRefreshToken() {
+      // let _logindata = common.getLocstorage('uc_loginData');
+      let expires = common.getLocstorage('uc_expires_in') || 5400;
+      setInterval(() =>{
+          tokenService.refreshToken();
+      }, (expires * 1000) / 3)
     }
 
   },
@@ -170,7 +186,7 @@ export default {
   },
   mounted() {
     console.log("joinMeeting加载完成");
-    
+    this.IntervalRefreshToken();
   }
 };
 </script>

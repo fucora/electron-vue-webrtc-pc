@@ -16,11 +16,11 @@ const state={
   // 登录用户的信息
   loginData: JSON.parse(localStorage.getItem('uc_loginData')),
   // xmpp账号信息
-  xmppCookieData: {},//$cookies.get('xmppCookieData'),
+  xmppCookieData: JSON.parse(localStorage.getItem('uc_loginData')),//$cookies.get('xmppCookieData'),
   // 服务地址
   serverAddress: environment.apiBase, //process.env.VUE_APP_BASE_URL, // 'https://pre.svocloud.com',
   // 呼叫速率
-  resolution: '256',
+  resolution: common.getLocstorage('defaultBandwidth') || 958,
 
   localVolume: 1,
   // 会议信息

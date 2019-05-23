@@ -3,16 +3,18 @@
 let RTCSupport = require('./RTCSupport').default;
 let RTCCall = require('./svocRTCCall').default;
 let RTMPCall = require('./pexRtmp').default;
+let JPEGPresentation = require('./JPEGPresentation').default;
 let rtcPort = require('./pexPort').default;
 let RTCStatistics = require('./getRtcStatistics').default;
 let tool = require('./tool').default;
 
 var support = RTCSupport;
-var Call = RTCCall;
+// var Call = RTCCall;
 var RTMP = RTMPCall;
+var turnServer = null;
+
 function SvocRtc() {
   var self = this;
-  var turnServer = JSON.parse(localStorage.getItem('turnServer')) || { turnurl:'', name: '', pwd: '' };
   self.state = 'IDLE';
   self.conference = null;
   self.conference_uri = '';
@@ -32,7 +34,7 @@ function SvocRtc() {
   self.pc = null;
   self.pcConfig = {};
   self.default_stun = null;
-  self.turn_server = {'url': turnServer.turnurl, 'username': turnServer.name, 'credential': turnServer.pwd },
+  self.turn_server = {},
   self.pin = null;
   self.pin_status = 'none';
   self.call_type = '';
@@ -186,11 +188,13 @@ SvocRtc.prototype.makeCall = function (node, conf, name, pin, bw, call_type, fla
   self.pin = pin;
   self.call_type = call_type;
   self.flash = flash;
-
+  
   if (bw) {
       self.bandwidth_in = parseInt(bw);
       self.bandwidth_out = self.bandwidth_in;
   }
+  turnServer = JSON.parse(localStorage.getItem('turnServer')) || {turnurl:'', name: '', pwd: ''};
+  self.turn_server = {'url': turnServer.turnurl, 'username': turnServer.name, 'credential': turnServer.pwd }
 
   rtcPort.init(self, function () {
     self.addCall(self.call_type, null);
@@ -254,13 +258,13 @@ SvocRtc.prototype.addCall = function(call_type, flash) {
 
   var obj;
   if (call_type == 'screen_http') {
-      // obj = new PexJPEGPresentation();
+      obj = new JPEGPresentation();
   } else if (flash || self.call_type == 'rtmp' || self.call_type == 'stream') {
       obj = RTMP;
   } else if (self.call && !call_type) {
       obj = self.call;
   } else {
-      obj = Call;
+      obj = new RTCCall();
   }
 
   if (!self.screenshare && (call_type == 'screen' || call_type == 'screen_http')) {
@@ -270,6 +274,7 @@ SvocRtc.prototype.addCall = function(call_type, flash) {
       };
       self.screenshare.onConnect = function(stream) {
           self.presentation_msg = {'status': ''};
+          console.log('screenshare.onConnect', stream)
           if (self.onScreenshareConnected) {
               self.onScreenshareConnected(stream);
           }
@@ -444,10 +449,13 @@ SvocRtc.prototype.clearLocalStream = function() {
   self.user_media_stream = null;
 };
 
-SvocRtc.prototype.present = function(call_type) {
+SvocRtc.prototype.present = function(call_type, sourceId) {
   var self = this;
   if (!self.screenshare && call_type) {
-      self.addCall(call_type, null);
+    if(sourceId) {
+      self.video_source = sourceId;
+    }
+    self.addCall(call_type, null);
   } else if (self.screenshare && !call_type) {
       self.screenshare.disconnect(false);
       self.screenshare = null;
@@ -506,7 +514,7 @@ SvocRtc.prototype.getPresentationURL = function() {
 
 SvocRtc.prototype.getPresentation = function() {
   var self = this;
-
+    console.log('getPresentation')
   if (!self.presentation) {
       self.addCall("presentation");
   } else if (self.onPresentationConnected) {
@@ -611,6 +619,7 @@ SvocRtc.prototype.disconnect = function(reason, referral) {
 
 SvocRtc.prototype.sendPresentationImage = function(file) {
   var self = this;
+  console.log('sendPresentationImage--------', self.screenshare)
   if (self.screenshare && self.screenshare.sendPresentationImageFile) {
       self.screenshare.sendPresentationImageFile(file);
   }

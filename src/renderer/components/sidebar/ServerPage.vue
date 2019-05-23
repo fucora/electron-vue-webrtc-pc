@@ -22,6 +22,8 @@
 </template>
 
 <script>
+import { common } from '../../util/common';
+
 export default {
   name: "serverPage",
   data() {
@@ -57,12 +59,16 @@ export default {
   },
   methods: {
     setServerAddr(formName) {
+      // todo 判断当前是否已经登录，已登录用户不可更改服务器地址，需要先退出登录
        this.$refs[formName].validate((valid) => {
         if(valid) {
           console.log('setServerAddr====>', this.serverForm.serverAddr)
           this.$store.commit("setServerAddress",this.serverForm.serverAddr);
+          common.setLocstorage('serverAddress', this.serverForm.serverAddr)
           // 设置成功后返回到index
-          this.$router.push("/index");
+          this.$nextTick(()=>{
+            this.$router.push("/index");
+          })
         }else{
           this.$notification('服务器地址设置失败', '不是一个有效的地址')
         }

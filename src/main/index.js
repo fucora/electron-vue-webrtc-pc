@@ -1,3 +1,4 @@
+import electron from 'electron'
 import { app, BrowserWindow, Menu, dialog, Notification, ipcMain } from 'electron'
 import pkg from '../../package.json'
 
@@ -14,18 +15,32 @@ const winURL = process.env.NODE_ENV === 'development'
   ? `http://localhost:9080`
   : `file://${__dirname}/index.html`
 
+const presentationWinURL = process.env.NODE_ENV === 'development'
+  ? `http://localhost:9080/#presentation`
+  : `file://${__dirname}/index.html#presentation` 
+
+const screenWinURL = process.env.NODE_ENV === 'development'
+? `http://localhost:9080/#screen`
+: `file://${__dirname}/index.html#screen` 
+
 function createWindow () {
   /**
    * Initial window options
    */
+  // 获取屏幕尺寸
+  const {width, height} = electron.screen.getPrimaryDisplay().workAreaSize
   mainWindow = new BrowserWindow({
-    height: 563,
+    height: height-50,
     useContentSize: true,
-    width: 1000
+    width: width-50,
+    minWidth: 1000,
+    minHeight: 600,
+    title: 'svoc云视频'
   })
 
   mainWindow.loadURL(winURL)
-
+  // 扩展程序
+  BrowserWindow.addExtension(__static +'/Extension/SVOC-Screensharing-Extension');
   // 打开开发工具页面
   // mainWindow.webContents.openDevTools({mode: "right"})
 
@@ -38,17 +53,17 @@ function createWindow () {
 function createMenu() {
   const template = [
     {
-      label: 'Edit',
+      label: '编辑',
       submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'pasteandmatchstyle' },
-        { role: 'delete' },
-        { role: 'selectall' },
+        // { role: 'undo' },
+        // { role: 'redo' },
+        // { type: 'separator' },
+        // { role: 'cut' },
+        // { role: 'copy' },
+        // { role: 'paste' },
+        // { role: 'pasteandmatchstyle' },
+        // { role: 'delete' },
+        // { role: 'selectall' },
         {
           label: '关于我们',
           click () {
@@ -68,7 +83,7 @@ function createMenu() {
       ]
     },
     {
-      label: 'View',
+      label: '查看',
       submenu: [
         { role: 'reload', label: '重新加载' },
         { role: 'toggledevtools', label: '开发者工具'},
@@ -142,8 +157,130 @@ ipcMain.on('logout-dialog', function (event) {
 ipcMain.on('open-error-dialog', function (event) {
     dialog.showErrorBox('错误', '这是一条错误消息');
 })
+// 创建一个presentation新窗口
+let presentationWin;
+const createPresentationWin = () =>{
+  let displays = electron.screen.getAllDisplays()
+  let externalDisplay = displays.find((display) => {
+    return display.bounds.x !== 0 || display.bounds.y !== 0
+  })
+  if (presentationWin) {
+    return false
+  }
+  let obj;
+  if(externalDisplay){
+    obj = {
+      width: 800, 
+      height: 600,
+      title: '共享',
+      x: externalDisplay.bounds.x + 50,
+      y: externalDisplay.bounds.y + 50
+      // parent: mainWindow, //mainWindow是主窗口
+    }
+  }else{
+    obj = {
+      width: 800, 
+      height: 600,
+      title: '共享',
+      // parent: mainWindow, //mainWindow是主窗口
+    }
+  }
+  presentationWin = new BrowserWindow(obj)
+  presentationWin.loadURL(presentationWinURL)
 
+  presentationWin.on('closed', () => {
+    // 关闭窗口前通知渲染进程，改变状态
+    mainWindow.webContents.send('ipcPresentationWin', false)
+    presentationWin = null
+  })
+  return presentationWin
+}
+// 创建一个screen新窗口
+let screenWin;
+const createScreenWin = () => {
+  if (screenWin) {
+    return false
+  }
+  let obj = {
+    width: 800, 
+    height: 500,
+    // frame:false,
+    title: '共享屏幕',
+    parent: mainWindow, //mainWindow是主窗口
+  }
 
+  screenWin = new BrowserWindow(obj)
+  screenWin.loadURL(screenWinURL)
+
+  screenWin.on('closed', () => {
+    screenWin = null
+  })
+  return screenWin
+}
+
+global.presentationObj = 'none';
+global.presentationWinStaus = false;
+ipcMain.on('accept-share', function (event, arg) {
+  global.presentationObj = arg;
+  /*** 测试代码 */
+  // const notification = new Notification({
+  //   title: `收到${arg.name}的共享源`,
+  //   body: arg.src
+  // })
+  // notification.show()
+  /*** /测试代码 */
+
+  if(presentationWin){
+    presentationWin.webContents.send('presentationObj', arg)
+    event.sender.send('presentationObj', arg)
+  }
+  
+})
+// 打开一个presentation新窗口
+ipcMain.on('presentation-window', function (event, arg) {
+  if(arg === 'open') {
+    if (!presentationWin) {
+      createPresentationWin()
+    }else{
+      presentationWin.show()
+    }
+    /*** 测试代码 */
+    // const notification = new Notification({
+    //   title: arg,
+    //   body: '打开共享独立窗口'
+    // })
+    // notification.show()
+    /*** /测试代码 */
+
+    event.sender.send('ipcPresentationWin', true)
+    
+  }else if(arg === 'close') {
+    presentationWin.close()
+    /*** 测试代码 */
+    // const notification = new Notification({
+    //   title: arg,
+    //   body: '关闭共享独立窗口'
+    // })
+    // notification.show()
+    /*** /测试代码 */
+    
+  }
+  
+})
+// 关闭presentation窗口
+ipcMain.on('close-presentationwin', function (event) {
+  
+})
+
+// 打开一个screen新窗口
+ipcMain.on('screen-window', function (event) {
+  if (!screenWin) {
+    createScreenWin()
+  }else{
+    screenWin.show();
+  }
+  // presentationWin.hide();
+})
 
 app.on('ready', ()=>{
     createWindow();

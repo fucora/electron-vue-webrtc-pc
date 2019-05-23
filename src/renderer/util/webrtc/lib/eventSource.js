@@ -1,16 +1,19 @@
 
 let log = require('./log').default;
 let call = require('./svocRTCCall').default;
+let main = require('./svocRTCMain').default;
 
   var Log = log;
   var createEventSource = function() {
     var self = this;
     self.source;
     self.source_timeout = 0;
+    self.call = null;
   }
   createEventSource.prototype.init = function(parent){
     var self = this;
     self.parent = parent;
+    self.call = parent.call;
     if(self.parent.token){
       self.connect()
     }
@@ -24,28 +27,29 @@ let call = require('./svocRTCCall').default;
       var msg = JSON.parse(e.data);
       Log.debug("presentation_start", msg);
       msg.status = "start";
-      // if (self.presentation_msg.status != 'start' ||
-      //     self.presentation_msg.presenter_uuid != msg.presenter_uuid) {
-      //     self.processPresentation(msg);
-      // }
-      // self.presentation_msg = msg;
+      if (self.parent.presentation_msg.status != 'start' ||
+      self.parent.presentation_msg.presenter_uuid != msg.presenter_uuid) {
+        self.parent.processPresentation(msg);
+      }
+      self.parent.presentation_msg = msg;
     }, false);
 
     self.source.addEventListener("presentation_stop", function(e) {
       var msg = {'status': "stop"};
       Log.debug("presentation_stop", msg);
-      // if (self.presentation_msg.status != 'stop') {
-      //     self.processPresentation(msg);
-      // }
-      // self.presentation_msg = msg;
+      if (self.parent.presentation_msg.status != 'stop') {
+          self.parent.processPresentation(msg);
+      }
+      self.parent.presentation_msg = msg;
     }, false);
 
     self.source.addEventListener("presentation_frame", function(e) {
-      Log.debug("presentation_frame", e.lastEventId);
-      // self.presentation_event_id = e.lastEventId;
-      // if (self.onPresentationReload && !self.onHold) {
-      //     self.onPresentationReload(self.getPresentationURL());
-      // }
+      Log.debug("presentation_frame",self.parent.onHold, e.lastEventId);
+      
+      self.parent.presentation_event_id = e.lastEventId;
+      if (self.parent.onPresentationReload && !self.parent.onHold) {
+          self.parent.onPresentationReload(self.parent.getPresentationURL());
+      }
     }, false);
     self.source.addEventListener("participant_create", function(e) {
       var msg = JSON.parse(e.data);
@@ -138,31 +142,31 @@ let call = require('./svocRTCCall').default;
     self.source.addEventListener("call_disconnected", function(e) {
       var msg = JSON.parse(e.data);
       Log.debug("call_disconnected", msg);
-      if (call && call.call_uuid == msg.call_uuid) {
+      if (self.call && self.call.call_uuid == msg.call_uuid) {
         console.log('call_disconnected 142=====')
-        call.remoteDisconnect(msg)
+        self.call.remoteDisconnect(msg)
       }
-      // if (self.call && self.call.call_uuid == msg.call_uuid) {
-      //     self.call.remoteDisconnect(msg);
-      // } else if (self.presentation && self.presentation.call_uuid == msg.call_uuid) {
-      //     self.presentation.remoteDisconnect(msg);
-      // } else if (self.screenshare && self.screenshare.call_uuid == msg.call_uuid) {
-      //     self.screenshare.remoteDisconnect(msg);
-      // }
+      if (self.call && self.call.call_uuid == msg.call_uuid) {
+          self.call.remoteDisconnect(msg);
+      } else if (self.presentation && self.presentation.call_uuid == msg.call_uuid) {
+          self.presentation.remoteDisconnect(msg);
+      } else if (self.screenshare && self.screenshare.call_uuid == msg.call_uuid) {
+          self.screenshare.remoteDisconnect(msg);
+      }
     }, false);
     self.source.addEventListener("disconnect", function(e) {
       var msg = JSON.parse(e.data);
       Log.debug("disconnect", msg);
-      // var reason = self.trans.ERROR_DISCONNECTED;
-      // if ('reason' in msg) {
-      //     reason = msg.reason;
-      // }
-      // if (self.state != 'DISCONNECTING') {
-      //     self.disconnect();
-      //     if (self.onDisconnect) {
-      //         self.onDisconnect(reason);
-      //     }
-      // }
+      var reason = self.parent.trans.ERROR_DISCONNECTED;
+      if ('reason' in msg) {
+          reason = msg.reason;
+      }
+      if (self.parent.state != 'DISCONNECTING') {
+          self.parent.disconnect();
+          if (self.parent.onDisconnect) {
+              self.parent.onDisconnect(reason);
+          }
+      }
     }, false);
 
     self.source.addEventListener("conference_update", function(e) {

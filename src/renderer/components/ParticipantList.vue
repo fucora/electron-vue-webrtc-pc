@@ -3,7 +3,7 @@
     <el-card class="box-card">
       <div slot="header" class="clearfix">
         <span>参会者（{{participantsList.OnlineNum}} / {{participantsList.allMemberLength}}）</span>
-        <!-- <el-button style="float: right; padding: 3px 0" type="text">操作按钮</el-button> -->
+        <a href="javascript:;" class="el-icon-refresh" title="刷新" style="float: right;color:#fff;margin-right:8px;" @click="connectXmppFn()"></a>
       </div>
 
       <div calss="participants-list">
@@ -59,6 +59,7 @@
     data() {
       return {
         cid: '',
+        vmrNumber: '',
         conferenceRole: {},
         // 是否有权限操作参会者
         havePermission: false,
@@ -83,6 +84,9 @@
           this.havePermission = true;
         }
 
+        const _conferenceData = this.$store.getters.getConferenceData;
+        this.vmrNumber = _conferenceData.conference.vmrNumber;
+
         // 参会者
         const allParticipants = this.$store.getters.getParticipantsData || [];
         _participantsList.allMemberLength = allParticipants.length;
@@ -99,8 +103,15 @@
 
     },
     methods: {
-
-      /** 会控 **/
+      // 刷新参会者列表
+      connectXmppFn(){
+        // 获取参会者列表
+        conferenceApi.getParticipants(this.cid, this.vmrNumber)
+        .then(reslist => {
+          this.$store.dispatch('asyncParticipantsData', reslist.list);
+        })
+      },
+       /** 会控 **/
       // 静音/解除静音
       participantMute(participant) {
         let _type = null;
@@ -209,6 +220,7 @@
   /* // 更多操作 */
   .list-dot{
     line-height: 45px;
+    cursor: pointer;
   }
   /* // 头像 */
   /* // 未在线 */

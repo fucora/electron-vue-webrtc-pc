@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'icomoon';
-  src:  url('fonts/icomoon.eot?ymi985');
-  src:  url('fonts/icomoon.eot?ymi985#iefix') format('embedded-opentype'),
-    url('fonts/icomoon.ttf?ymi985') format('truetype'),
-    url('fonts/icomoon.woff?ymi985') format('woff'),
-    url('fonts/icomoon.svg?ymi985#icomoon') format('svg');
+  src:  url('fonts/icomoon.eot?v9vo52');
+  src:  url('fonts/icomoon.eot?v9vo52#iefix') format('embedded-opentype'),
+    url('fonts/icomoon.ttf?v9vo52') format('truetype'),
+    url('fonts/icomoon.woff?v9vo52') format('woff'),
+    url('fonts/icomoon.svg?v9vo52#icomoon') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -24,129 +24,141 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-conference-time:before {
+.icon-conference-desk:before {
   content: "\e900";
 }
-.icon-arrow-down:before {
+.icon-share-files:before {
   content: "\e901";
 }
-.icon-arrow-left:before {
+.icon-share-screen:before {
   content: "\e902";
 }
-.icon-arrow-right:before {
+.icon-share-stop:before {
   content: "\e903";
 }
-.icon-arrow-up:before {
+.icon-share-popout:before {
   content: "\e904";
 }
-.icon-conference-add-particiopant:before {
+.icon-conference-time:before {
   content: "\e905";
 }
-.icon-conference-add:before {
+.icon-tool-whiteboard:before {
   content: "\e906";
 }
-.icon-conference-collected:before {
+.icon-tool-line:before {
   content: "\e907";
 }
-.icon-conference-desk:before {
+.icon-tool-triangle:before {
   content: "\e908";
 }
-.icon-conference-hand-up:before {
+.icon-tool-rect:before {
   content: "\e909";
 }
-.icon-conference-local:before {
+.icon-conference-add:before {
   content: "\e90a";
 }
-.icon-conference-more:before {
+.icon-arrow-left:before {
   content: "\e90b";
 }
-.icon-conference-network:before {
+.icon-arrow-right:before {
   content: "\e90c";
 }
-.icon-conference-reduce:before {
+.icon-arrow-up:before {
   content: "\e90d";
 }
-.icon-conference-unCollected:before {
+.icon-arrow-down:before {
   content: "\e90e";
 }
-.icon-conference-vote:before {
+.icon-mdi-volume-down:before {
   content: "\e90f";
 }
-.icon-mdi-call-end:before {
+.icon-tool-format:before {
   content: "\e910";
 }
-.icon-mdi-fullscreen-exit:before {
+.icon-tool-select:before {
   content: "\e911";
 }
-.icon-mdi-fullscreen:before {
+.icon-tool-draw:before {
   content: "\e912";
 }
-.icon-mdi-mic:before {
+.icon-tool-annotate:before {
   content: "\e913";
 }
-.icon-mdi-moff:before {
+.icon-tool-save:before {
   content: "\e914";
 }
-.icon-mdi-picture-as-pdf:before {
+.icon-tool-delete:before {
   content: "\e915";
 }
-.icon-mdi-setup-video:before {
+.icon-tool-redo:before {
   content: "\e916";
 }
-.icon-mdi-videocam-off:before {
+.icon-tool-undo:before {
   content: "\e917";
 }
-.icon-mdi-videocam:before {
+.icon-tool-rubber:before {
   content: "\e918";
 }
-.icon-mdi-volume-down:before {
+.icon-tool-text:before {
   content: "\e919";
 }
-.icon-mdi-volume-up:before {
+.icon-tool-laser-pen:before {
   content: "\e91a";
 }
-.icon-tool-annotate:before {
+.icon-mdi-moff:before {
   content: "\e91b";
 }
-.icon-tool-delete:before {
+.icon-mdi-videocam-off:before {
   content: "\e91c";
 }
-.icon-tool-draw:before {
+.icon-conference-unCollected:before {
   content: "\e91d";
 }
-.icon-tool-format:before {
+.icon-conference-collected:before {
   content: "\e91e";
 }
-.icon-tool-laser-pen:before {
+.icon-mdi-fullscreen-exit:before {
   content: "\e91f";
 }
-.icon-tool-line:before {
+.icon-mdi-fullscreen:before {
   content: "\e920";
 }
-.icon-tool-rect:before {
+.icon-mdi-picture-as-pdf:before {
   content: "\e921";
 }
-.icon-tool-redo:before {
+.icon-mdi-volume-up:before {
   content: "\e922";
 }
-.icon-tool-rubber:before {
+.icon-mdi-videocam:before {
   content: "\e923";
 }
-.icon-tool-save:before {
+.icon-mdi-mic:before {
   content: "\e924";
 }
-.icon-tool-select:before {
+.icon-conference-more:before {
   content: "\e925";
 }
-.icon-tool-text:before {
+.icon-conference-hand-up:before {
   content: "\e926";
 }
-.icon-tool-triangle:before {
+.icon-mdi-setup-video:before {
   content: "\e927";
 }
-.icon-tool-undo:before {
+.icon-conference-vote:before {
   content: "\e928";
 }
-.icon-tool-whiteboard:before {
+.icon-conference-reduce:before {
   content: "\e929";
+}
+.icon-conference-local:before {
+  content: "\e92a";
+}
+.icon-conference-add-particiopant:before {
+  content: "\e92b";
+}
+.icon-mdi-call-end:before {
+  content: "\e92c";
+}
+.icon-conference-network:before {
+  content: "\e92d";
 }

@@ -31,7 +31,7 @@ const mutations = {
   },
   setDevices(state, device){
     state.devicesInfo[device.name] = device.value;
-    // console.log("setDevices------",state.devicesInfo)
+    console.log("setDevices------",state.devicesInfo)
   }
 };
 

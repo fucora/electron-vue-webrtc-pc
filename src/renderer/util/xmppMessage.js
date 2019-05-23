@@ -5,9 +5,14 @@
  */
 import {conferenceApi} from '../server/api'
 import store from '../store/index';
-import { Message } from 'element-ui';
 import { Hint, boxNotification } from '../config/messagebox';
 
+let $notification;
+if(process.platform === 'darwin') { // macos系统消息提示类型
+  $notification = boxNotification;
+}else { // win,其他系统消息提示类型
+  $notification = Hint; 
+}
 let meetingData = {};
 let allParticipants = [];
 let userData = {};
@@ -25,7 +30,7 @@ function showGreeting(msg) {
     case 1002: // 会议结束
       break;
     case 2001: // 参会者进入
-      boxNotification('加入会议', `${msgData.displayName}加入会议`)
+      $notification('加入会议', `${msgData.displayName}加入会议`)
       getParticipants();
       break;
     case 2002: // 参会者主动离开
@@ -33,7 +38,7 @@ function showGreeting(msg) {
       if(msgData.userId != userData.userId){
         allParticipants.forEach(list => {
           if(msgData.userId === list.userId){
-            boxNotification('离开会议', `${list.displayName}离开会议`)
+            $notification('离开会议', `${list.displayName}离开会议`)
           }
         });
         getParticipants();
@@ -48,7 +53,7 @@ function showGreeting(msg) {
     case 2008: //收到参会者举手消息
       if(msgData.userId != userData.userId) {
         // Hint(`${msgData.displayName}发起举手`)
-        boxNotification('举手', `${msgData.displayName}发起举手`)
+        $notification('举手', `${msgData.displayName}发起举手`)
       }
       getParticipants();
       break;
@@ -59,18 +64,18 @@ function showGreeting(msg) {
     case 3014: // 全部静音改变
       break;
     case 3008:  //多终端登录  后登录的人会踢掉前一个人
-      boxNotification('错误',`您的账号在其他设备登录，如非本人操作，则密码可能已泄露，请尽快修改密码`)
+      $notification('错误',`您的账号在其他设备登录，如非本人操作，则密码可能已泄露，请尽快修改密码`)
       break;
     case 3006:  //用户账号被冻结
-      boxNotification('错误','用户账号被冻结')
+      $notification('错误','用户账号被冻结')
       // Hint(`用户账号被冻结`, 'error')
       break;
     case 3007:  //用户账号被删除
-      boxNotification('错误','用户账号被删除')
+      $notification('错误','用户账号被删除')
       // Hint(`用户账号被删除`, 'error')
       break;
     case 3011:  //企业被冻结
-      boxNotification('错误','企业被冻结')
+      $notification('错误','企业被冻结')
       // Hint(`企业被冻结`, 'error')
       break;
     case 3019:  //收藏/取消收藏
@@ -91,14 +96,14 @@ function showGreeting(msg) {
       break;
     case 2009: //被动取消举手消息
     case 3027: //主动取消举手消息
-      boxNotification('举手',`${msgData.displayName}取消举手`)
+      $notification('举手',`${msgData.displayName}取消举手`)
       getParticipants();
       break;
     case 3033: //uc退出登录 webrtc执行退出会议
       break;
     case 3034: //发起双流消息
-      break;
     case 3035: //结束双流消息
+      getParticipants();
       break;
     default:
       break;

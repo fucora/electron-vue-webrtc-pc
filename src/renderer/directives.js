@@ -35,26 +35,34 @@ Vue.directive('rtcVolume', {
     // console.log('inserted',el.value)
   },
   update:function (el, binding) {
-    // console.log("update===", binding.value+ "--"+binding.oldValue)
+    console.log("update===", binding.value+ "--"+binding.oldValue)
     if(binding.value != binding.oldValue){
       // const _devices =  store.getters.getDevices;
-
-      const audioOutput = _devices.audioOutput || 'default';
-  
       let domElement = el;
-      let src = domElement.src;
-      domElement.src = '';
-      domElement.setSinkId(audioOutput)
-      .then(function () {
-        console.log('Audio output sat to', audioOutput);
-      })
-      .catch(function (error) {
-        console.error('Unable to set audio output', error);
-      })
-      .then(function() {
-        // Workaround for nwjs (bis): resume playing the video
-        domElement.src = src;
-      });
+      domElement.volume = binding.value;
+
+      let setOutputDevice = function() {
+        const audioOutput = localStorage.getItem('audioOutputId') || '';
+  
+        
+        let src = domElement.src;
+        // domElement.src = '';
+        domElement.setSinkId(audioOutput)
+        .then(function () {
+          console.log('Audio output sat to', audioOutput);
+        })
+        .catch(function (error) {
+          console.error('Unable to set audio output', error);
+        })
+        .then(function() {
+          // Workaround for nwjs (bis): resume playing the video
+          domElement.src = src;
+        });
+      };
+      if(domElement.setSinkId) {
+        domElement.onplay = setOutputDevice;
+      }
+      
     }
     
   },

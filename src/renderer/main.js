@@ -25,27 +25,27 @@ Vue.use(VueCookies)
 Vue.use(VueAxios, axios)//axios
 // Vue.use(Electron)
 
-Vue.prototype.Hint = Hint;
-Vue.prototype.$notification = boxNotification;
-
 if (!process.env.IS_WEB) Vue.use(require('vue-electron'))
 
+// Vue.prototype.Hint = Hint;
+// Vue.prototype.$notification = boxNotification;
+/**
+ * 判断当前操作系统 
+ * 显示不同的消息通知框
+ * darwin -> macos
+ * win32 -> win
+ */
+if(process.platform === 'darwin'){
+  Vue.prototype.$notification = boxNotification;
+}else{
+  Vue.prototype.$notification = Hint;
+}
 // elementUI
 import 'element-ui/lib/theme-chalk/index.css';
 // import './element-variables.scss';//自定义样式
 import ElementUI from 'element-ui';//全局-需取消配置.babelrc
 import { Message } from 'element-ui';
 Vue.use(ElementUI);
-// 重写$message消息提示方法
-// Vue.prototype.Hint = (message, type) => {
-//   Message({
-//     message,
-//     type,
-//     center: true,
-//     // iconClass: "noicon",
-//     customClass: 'messagebox'
-//   })
-// }
 
 
 Vue.use(Vuex)
@@ -56,13 +56,7 @@ import { Drawer } from 'iview';//单组件-需配置.babelrc
 Vue.component('Drawer', Drawer);
 // iview end
 
-
-
-
 Vue.config.productionTip = false
-
-
-
 
 var app = new Vue({
   router,

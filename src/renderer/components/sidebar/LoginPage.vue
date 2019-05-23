@@ -69,8 +69,8 @@ export default {
       isLogin: this.$store.getters.getIsLoggedIn && !!this.$store.getters.getLoginData,
       loginForm: {
         captcha: "",
-        username: "zhupp@svocloud.com",
-        password: "123456",
+        username: "",
+        password: "",
         clientSecret:
           "MIICXQIBAAKBgQCxwfRs7dncpWJ27OQ9rIjHeBbkaigRY4in+DEKBsbmT3lpb2C6JQyqgxl9C+l5zSbONp0OIibaAVsLPSbUPVwIDAQABAoGAK76VmKIuiI2fZJQbdq6oDQ",
         isKeepLogin: true
@@ -165,5 +165,4 @@ export default {
   padding-top: 20px;
   text-align: center;
 }
-</style>
 </style>

@@ -1,5 +1,6 @@
 
 let rtcPort = require('./pexPort').default;
+// let rtcPort = require('./callPort').default;
 let tool = require('./tool').default;
 let RTCStatistics = require('./getRtcStatistics').default;
   /** 建立点对点连接 */
@@ -51,6 +52,8 @@ let RTCStatistics = require('./getRtcStatistics').default;
     self.onDisconnect = null;
     self.onMicActivity = null;
     self.onScreenshareMissing = null;
+
+    // rtcPort.parent = self;
   }
   /**
    * 同 pexRTC.makeCall()
@@ -58,6 +61,7 @@ let RTCStatistics = require('./getRtcStatistics').default;
   Call.prototype.init = function (parent, params, cb) {
     var self = this;
     self.parent = parent;
+    // rtcPort.init();
     // rtcPort.init(parent, params, null, function () {
     //     if(cb){
     //         cb()
@@ -118,6 +122,7 @@ let RTCStatistics = require('./getRtcStatistics').default;
     } else if (call_type == 'screen') {
       self.call_type = call_type;
       self.audio_source = false;
+      self.video_source = self.parent.video_source; //add by lixd
       self.recv_audio = false;
       self.recv_video = false;
       if (self.bandwidth_out < 384) {
@@ -130,19 +135,39 @@ let RTCStatistics = require('./getRtcStatistics').default;
       self.recv_audio = self.parent.recv_audio;
       self.recv_video = self.parent.recv_video;
     }
-
-    // if(self.video_source) {
-    //     self.getMedia(self.video_source);
-    // }else{
-    //     self.getMedia();
-    // }
-    self.getMedia();
+    if (call_type == 'screen' && self.chrome_ver >= 34) { // && !self.legacy_screenshare
+        self.getMedia(self.video_source);
+        var pending = window.setTimeout(function() {
+            /* var err = new Error('NavigatorUserMediaError');
+            err.name = 'EXTENSION_UNAVAILABLE';
+            self.gumError(err); */
+            // self.legacy_screenshare = true;
+            // self.getMedia();
+        }, 2000);
+        self.event_listener = function (event) {
+            if (event.origin != window.location.origin) {
+                return;
+            }
+            if (event.data.type == self.parent.screenshare_api + 'Done') {
+                self.getMedia(event.data.sourceId);
+            } else if (event.data.type == self.parent.screenshare_api + 'Pending') {
+                window.clearTimeout(event.data.id);
+            }
+        };
+        window.addEventListener('message', self.event_listener);
+        window.postMessage({ type: self.parent.screenshare_api, id: +pending}, '*');
+    } else {
+        self.getMedia();
+    }
+    
+    // self.getMedia();
+    // rtcPort.createInit(self)
     console.log('call self ==== ', self)
   }
-
   Call.prototype.connect = function () {
       var self = this;
-
+     
+    
       if (self.state != 'UPDATING') {
           if ('iceServers' in self.parent.pcConfig) {
               self.pc = new RTCPeerConnection(self.parent.pcConfig);
@@ -153,9 +178,9 @@ let RTCStatistics = require('./getRtcStatistics').default;
       self.pc.onicecandidate = function(evt) { self.pcIceCandidate(evt); };
       self.pc.oniceconnectionstatechange = function(evt) { self.pcIceConnectionStateChanged(evt); };
       if (self.firefox_ver > 52 || self.safari_ver > 603) {
-          self.pc.ontrack = function(evt) { self.pcAddStream(evt.streams); }
+        self.pc.ontrack = function(evt) { self.pcAddStream(evt.streams); }
       } else {
-          self.pc.onaddstream = function(evt) { self.pcAddStream([evt.stream]); };
+        self.pc.onaddstream = function(evt) { self.pcAddStream([evt.stream]); };
       }
 
       if (self.call_type == 'screen') {
@@ -198,23 +223,15 @@ let RTCStatistics = require('./getRtcStatistics').default;
       }
 
       self.pcCreateOffer();
-
-    //   var pollMediaStatistics = function(){
-    //     self.pc.getStats(function (rawStats) {
-    //       self.stats.updateStats(rawStats.result());
-    //     }, function(err){
-    //       console.error(err);
-    //     })
-    //   }
-    //   self.stats_interval = setInterval(() => {
-    //     pollMediaStatistics()
-    //   }, 1000);
-      
   }
   Call.prototype.getMedia = function(sourceId) {
     var self = this;
-    if(sourceId) {
-      self.video_source = sourceId;
+    if (self.call_type == 'screen' && self.chrome_ver >= 34) { // && !self.legacy_screenshare
+        if (sourceId) {
+            self.video_source = sourceId;
+        } else {
+            return self.handleError(self.parent.trans.ERROR_SCREENSHARE_CANCELLED);
+        }
     }
 
     if(self.localStream) {
@@ -235,13 +252,13 @@ let RTCStatistics = require('./getRtcStatistics').default;
               videoConstraints.chromeMediaSourceId = self.video_source;
           } else {
               if (self.firefox_ver > 32) {
-                  videoConstraints.mozMediaSource = self.call_type;
-                  videoConstraints.mediaSource = self.call_type;
+                videoConstraints.mozMediaSource = self.call_type;
+                videoConstraints.mediaSource = self.call_type;
               } else {
-                  videoConstraints.chromeMediaSource = self.call_type;
-                  if (self.chrome_ver < 50) {
-                      videoConstraints.googLeakyBucket = true;
-                  }
+                videoConstraints.chromeMediaSource = self.call_type;
+                if (self.chrome_ver < 50) {
+                    videoConstraints.googLeakyBucket = true;
+                }
               }
           }
           videoConstraints.maxWidth = self.parent.screenshare_width;
@@ -311,16 +328,7 @@ let RTCStatistics = require('./getRtcStatistics').default;
             audioConstraints = {'optional': [{'sourceId': self.audio_source}]};
         }
       }
-    //   if (self.audio_source && audioConstraints) {
-    //     if ((self.chrome_ver > 56 && !self.is_android) || self.firefox_ver > 43 || self.edge_ver > 10527 || self.safari_ver > 603) {
-    //         audioConstraints = {'deviceId': self.audio_source};
-    //     } else if (self.chrome_ver > 49) {
-    //         audioConstraints = {'mandatory': {'sourceId': self.audio_source}, 'optional': []};
-    //     } else {
-    //         audioConstraints = {'optional': [{'sourceId': self.audio_source}]};
-    //     }
-    // }
-
+  
       if (self.chrome_ver >= 38 && self.chrome_ver < 57) {
           if (audioConstraints && !audioConstraints.optional) {
               audioConstraints = {'optional': []};
@@ -369,15 +377,6 @@ let RTCStatistics = require('./getRtcStatistics').default;
               constraints.video.optional = [{'sourceId': self.video_source}];
           }
       }
-        // if (self.video_source && self.call_type != 'screen') {
-        //     if ((self.chrome_ver > 56 && !self.is_android) || self.firefox_ver > 43 || self.edge_ver > 10527 || self.safari_ver > 603) {
-        //         constraints.video.deviceId = self.video_source;
-        //     } else if (self.chrome_ver > 49) {
-        //         constraints.video.mandatory.sourceId = self.video_source;
-        //     } else {
-        //         constraints.video.optional = [{'sourceId': self.video_source}];
-        //     }
-        // }
 
       if (self.chrome_ver > 49 && self.chrome_ver < 57 && !self.call_type && self.parent.powerLineFrequency > 0) {
           constraints.video.optional.push({'googPowerLineFrequency': self.parent.powerLineFrequency});
@@ -387,7 +386,7 @@ let RTCStatistics = require('./getRtcStatistics').default;
           constraints.video = false;
       }
 
-      console.log("constraints===", constraints);
+      console.log("===constraints===", constraints);
       // getUserMedia(constraints)
       navigator.getMedia = ( navigator.getUserMedia ||
                              navigator.webkitGetUserMedia ||
@@ -406,22 +405,20 @@ let RTCStatistics = require('./getRtcStatistics').default;
                                  function(stream) { self.gumSuccess(stream); },
                                  function(err) { self.gumError(err); });
           } else {
-              return false; // self.handleError(self.parent.trans.ERROR_WEBRTC_SUPPORT);
+              return self.handleError(self.parent.trans.ERROR_WEBRTC_SUPPORT);
           }
       } catch (error) {
           self.gumError(error);
       }
+    } else {
+        self.onSetup();
     }
-    // else {
-    //     self.onSetup();
-    // }
-
   }
   Call.prototype.gumSuccess = function(stream) {
     var self = this;
     self.localStream = stream;
-    tool.init('localVideo', self.localStream);
-    console.log('----localVideo----', self.localStream)
+    // tool.bindEvent_srcObject('localVideo', self.localStream);
+    // console.log('----localVideo----', self.localStream)
 
     if (self.parent.return_media_stream) {
       self.onSetup(stream);
@@ -475,12 +472,12 @@ let RTCStatistics = require('./getRtcStatistics').default;
         self.cleanup();
         if (self.chrome_ver >= 34) {
             if (err && err.name == 'TrackStartError') {
-                // self.handleError(self.parent.trans.ERROR_CONNECTING_SCREENSHARE);
+                self.handleError(self.parent.trans.ERROR_CONNECTING_SCREENSHARE);
             } else {
                 self.onScreenshareMissing();
             }
         } else {
-            // self.handleError(self.parent.trans.ERROR_SCREENSHARE_CANCELLED);
+            self.handleError(self.parent.trans.ERROR_SCREENSHARE_CANCELLED);
         }
     } else if(self.force_hd == 1080) {
         self.force_hd = 720;
@@ -492,7 +489,11 @@ let RTCStatistics = require('./getRtcStatistics').default;
         if (self.parent.event_error) {
             self.parent.event_error(self.pc, self.parent.conference, 'getUserMedia', err);
         }
-        console.log('getUserMedia err 2')
+        if (err) {
+            self.parent.error = err.name;
+        }
+        console.log('getUserMedia err 2', err)
+        self.handleError(self.parent.trans.ERROR_USER_MEDIA);
     }
   }
   Call.prototype.changeDevices = function() {
@@ -500,46 +501,36 @@ let RTCStatistics = require('./getRtcStatistics').default;
       self.localStream = null;
       self.makeCall(self.parent.call_type)
   }
-  Call.prototype.peerInit = function(pcConfig){
-      var self = this;
-      self.pc = new RTCPeerConnection(pcConfig);
-      self.pc.onicecandidate = function(evt) { self.pcIceCandidate(evt) };
-      if (self.parent.firefox_ver > 52 || self.parent.safari_ver > 603) {
-        self.pc.ontrack = function(evt) { self.pcAddStream(evt.streams); }
-      } else {
-          self.pc.onaddstream = function(evt) { self.pcAddStream([evt.stream]); };
-      }
-      return new RTCPeerConnection(pcConfig);
-    }
   Call.prototype.pcCreateOffer = function() {
         var self = this;
         var constraints = {};
-        if (self.parent.chrome_ver > 49 || self.parent.firefox_ver > 42 || self.parent.edge_ver > 10527 || self.parent.safari_ver > 603) {
-            constraints =  { 'offerToReceiveAudio': self.parent.recv_audio, 'offerToReceiveVideo': self.parent.recv_video };
+        if (self.chrome_ver > 49 || self.firefox_ver > 42 || self.edge_ver > 10527 || self.safari_ver > 603) {
+            constraints =  { 'offerToReceiveAudio': self.recv_audio, 'offerToReceiveVideo': self.recv_video };
         } else {
-            constraints =  { 'mandatory': { 'OfferToReceiveAudio': self.parent.recv_audio, 'OfferToReceiveVideo': self.parent.recv_video } };
+            constraints =  { 'mandatory': { 'OfferToReceiveAudio': self.recv_audio, 'OfferToReceiveVideo': self.recv_video } };
         }
-
+        console.log('pcCreateOffer constraints', constraints)
         setTimeout(function() {
             if (self.state == 'ACTIVE') {
                 self.state = 'CONNECTING';
                 console.log("Timed out gathering candidates", self.pc.localDescription.sdp);
                 if (self.ice_candidates.length == 0) {
                     console.log("No ICE candidates were gathered.");
-                    // self.handleError(self.parent.trans.ERROR_ICE_CANDIDATES);
+                    self.handleError(self.parent.trans.ERROR_ICE_CANDIDATES);
                 } else {
                     self.pcOfferCreated(self.pc.localDescription);
                 }
             }
-        }, 10000);
+        }, 5000);
         
-        if(self.parent.safari_ver > 604) {
+        if(self.safari_ver > 604) {
             self.pc.createOffer(constraints)
                 .then(function(sdp) {
                     self.pcOfferCreated(sdp);
                 })
                 .catch(function(err) {
                     console.error('createOffer error')
+                    self.handleError(err)
                 });
         }else {
             self.pc.createOffer(function(sdp) {
@@ -548,6 +539,7 @@ let RTCStatistics = require('./getRtcStatistics').default;
             },
             function(err) {
                 console.error('createOffer error')
+                self.handleError(err)
             },
             constraints);
         }
@@ -558,27 +550,24 @@ let RTCStatistics = require('./getRtcStatistics').default;
       self.pc.setLocalDescription(sdp,
         function () { console.log("Local description active"); },
         function (err) {
-          console.error('Local description failed')
+          console.error('Local description failed', err)
         }
       );
       if (self.state == 'CONNECTING' || self.state == 'UPDATING') {
         var mutatedOffer = {'call_type' : 'WEBRTC', 'sdp' : self.mutateOffer(sdp).sdp};
-        if (self.parent.call_type == 'screen') {
+        if (self.call_type == 'screen') {
             mutatedOffer.present = 'send';
-        } else if (self.parent.call_type == 'presentation') {
+        } else if (self.call_type == 'presentation') {
             mutatedOffer.present = 'receive';
-        } else if (self.parent.presentation_in_main) {
+        } else if (self.presentation_in_main) {
             mutatedOffer.present = 'main';
         }
       
-        rtcPort.Call_calls(self.state, mutatedOffer, function(e){
+        self.Call_calls(self.state, mutatedOffer, function(e){
             self.processAnswer(e)
         })
     }
-    //   if(cb){
-    //     cb(self.mutateOffer(sdp).sdp);
-    //   }
-    }
+  }
 
   Call.prototype.processAnswer = function(e, cb){
     var self = this;
@@ -589,45 +578,45 @@ let RTCStatistics = require('./getRtcStatistics').default;
         return console.error("Unexpected Response: " + e.target.status + " " + e.target.statusText);
     }
     if (e.target.status != 200) {
-    return console.error(msg.result || msg.reason);
+        return console.error(msg.result || msg.reason);
     }
     console.log("Received answer", msg.result);
     if (msg.result.call_uuid) {
-    self.parent.call_uuid = msg.result.call_uuid;
+        self.call_uuid = msg.result.call_uuid;
     }
 
     if(self.state != 'DISCONNECTING') {
-    var lines;
-    if (msg.result.sdp) {
-        lines = msg.result.sdp.split('\r\n');
-    } else {
-        lines = msg.result.split('\r\n');
-    }
-    lines = self.sdpChangeBW(lines);
-    var sdp = lines.join('\r\n');
-    console.log("Mutated answer", sdp);
+        var lines;
+        if (msg.result.sdp) {
+            lines = msg.result.sdp.split('\r\n');
+        } else {
+            lines = msg.result.split('\r\n');
+        }
+        lines = self.sdpChangeBW(lines);
+        var sdp = lines.join('\r\n');
+        console.log("Mutated answer", sdp);
 
-    if(self.parent.safari_ver > 604) {
-        self.pc.setRemoteDescription(new RTCSessionDescription({'type': 'answer', 'sdp' : sdp}))
-        .then(function () {
-            console.log('setRemoteDescription success safari');
-            self.remoteDescriptionActive();
-        })
-        .catch(function (err) {
-            console.error('Remote description failed safari')
-        })
-    } else {
-        self.pc.setRemoteDescription(new RTCSessionDescription({ 'type' : 'answer', 'sdp' : sdp }),
-        function () {
-            if (self.parent.edge_ver > 10527 && self.parent.edge_ver <= 14393) {
-                self.sdpIceCandidates(sdp);
-            }
-            self.remoteDescriptionActive();
-            console.log('setRemoteDescription success');
-        },
-        function (err) {
-            console.error('Remote description failed')
-        });
+        if(self.safari_ver > 604) {
+            self.pc.setRemoteDescription(new RTCSessionDescription({'type': 'answer', 'sdp' : sdp}))
+            .then(function () {
+                console.log('setRemoteDescription success safari');
+                self.remoteDescriptionActive();
+            })
+            .catch(function (err) {
+                console.error('Remote description failed safari')
+            })
+        } else {
+            self.pc.setRemoteDescription(new RTCSessionDescription({ 'type' : 'answer', 'sdp' : sdp }),
+            function () {
+                if (self.edge_ver > 10527 && self.edge_ver <= 14393) {
+                    self.sdpIceCandidates(sdp);
+                }
+                self.remoteDescriptionActive();
+                console.log('setRemoteDescription success');
+            },
+            function (err) {
+                console.error('Remote description failed')
+            });
         }
     }
   }
@@ -638,7 +627,7 @@ let RTCStatistics = require('./getRtcStatistics').default;
     if (self.recv_audio === false && self.recv_video === false && self.chrome_ver > 47 && self.localStream) {
         self.pcAddStream([self.localStream]);
     }
-    rtcPort.Call_ack(function() {
+    self.Call_ack(function() {
         self.ackReceived()
     })
   }
@@ -657,16 +646,16 @@ let RTCStatistics = require('./getRtcStatistics').default;
                     if (sdplines[i+1].lastIndexOf('b=AS:', 0) === 0) {
                         var oldbw = sdplines[i+1];
                         oldbw = oldbw.substr(oldbw.indexOf(":")+1);
-                        if (parseInt(oldbw) < self.parent.bandwidth_out) {
-                            self.parent.bandwidth_out = oldbw;
+                        if (parseInt(oldbw) < self.bandwidth_out) {
+                            self.bandwidth_out = oldbw;
                         }
                         i++;
                     }
                     if (sdplines[i+1].lastIndexOf('b=TIAS:', 0) === 0) {
                         i++;
                     }
-                    newlines.push('b=AS:' + self.parent.bandwidth_out);
-                    newlines.push('b=TIAS:' + (self.parent.bandwidth_out * 1000));
+                    newlines.push('b=AS:' + self.bandwidth_out);
+                    newlines.push('b=TIAS:' + (self.bandwidth_out * 1000));
                 } else if (sdplines[i].lastIndexOf('m=', 0) === 0 || sdplines[i] === '') {
                     if (sdplines[i].lastIndexOf('m=video', 0) !== 0) {
                         state = 'notinvideo';
@@ -700,7 +689,7 @@ let RTCStatistics = require('./getRtcStatistics').default;
    Call.prototype.mutateOffer = function(description) {
       var self = this;
       var lines = description.sdp.split('\r\n');
-      if (self.parent.edge_ver > 10527) {
+      if (self.edge_ver > 10527) {
           lines = self.sdpAddCandidates(lines);
       }
       lines = self.sdpAddPLI(lines);
@@ -715,7 +704,7 @@ let RTCStatistics = require('./getRtcStatistics').default;
       var newlines = [];
 
       for (var i = 0; i < sdplines.length; i++) {
-          if (self.parent.edge_ver < 14393 && (sdplines[i].lastIndexOf('m=', 0) === 0 || sdplines[i] === '')) {
+          if (self.edge_ver < 14393 && (sdplines[i].lastIndexOf('m=', 0) === 0 || sdplines[i] === '')) {
               for (var j = 0; j < self.ice_candidates.length; j++) {
                   if (self.ice_candidates[j].indexOf("endOfCandidates") === -1) {
                       newlines.push('a=' + self.ice_candidates[j]);
@@ -767,11 +756,11 @@ let RTCStatistics = require('./getRtcStatistics').default;
               }
           } else if (state === 'invideo') {
               if (sdplines[i].lastIndexOf('m=', 0) === 0 || sdplines[i] === '') {
-                  if (!(self.parent.chrome_ver > 41 || self.parent.firefox_ver > 44)) {
+                  if (!(self.chrome_ver > 41 || self.firefox_ver > 44)) {
                       newlines.push('a=rtcp-fb:* nack pli');
                   }
 
-                  if (self.parent.call_type == 'presentation' || self.parent.call_type == 'screen') {
+                  if (self.call_type == 'presentation' || self.call_type == 'screen') {
                       newlines.push('a=content:slides');
                   }
 
@@ -780,7 +769,7 @@ let RTCStatistics = require('./getRtcStatistics').default;
                   }
               }
 
-              if ((!self.parent.h264_enabled || self.parent.call_type == 'screen') && sdplines[i].lastIndexOf('a=rtpmap:', 0) === 0 && sdplines[i].lastIndexOf('H264') > 0) {
+              if ((!self.h264_enabled || self.call_type == 'screen') && sdplines[i].lastIndexOf('a=rtpmap:', 0) === 0 && sdplines[i].lastIndexOf('H264') > 0) {
                   var fields = sdplines[i].split(' ');
                   var pt = fields[0].substr(fields[0].indexOf(':')+1);
                   while (sdplines[i+1].lastIndexOf('a=fmtp:' + pt, 0) === 0 || sdplines[i+1].lastIndexOf('a=rtcp-fb:' + pt, 0) === 0) {
@@ -791,7 +780,7 @@ let RTCStatistics = require('./getRtcStatistics').default;
 
               newlines.push(sdpline);
 
-              if (self.parent.chrome_ver > 0 && (self.parent.allow_1080p || self.parent.call_type == 'presentation') && sdplines[i].lastIndexOf('a=rtpmap:', 0) === 0) {
+              if (self.chrome_ver > 0 && (self.allow_1080p || self.call_type == 'presentation') && sdplines[i].lastIndexOf('a=rtpmap:', 0) === 0) {
                   var fields = sdplines[i].split(' ');
                   var pt = fields[0].substr(fields[0].indexOf(':')+1);
                   if (sdplines[i].lastIndexOf('VP8') > 0) {
@@ -807,7 +796,7 @@ let RTCStatistics = require('./getRtcStatistics').default;
               }
 
               if (sdplines[i].lastIndexOf('c=', 0) === 0) {
-                  newlines.push('b=AS:' + self.parent.bandwidth_in);
+                  newlines.push('b=AS:' + self.bandwidth_in);
               }
           }
       }
@@ -829,21 +818,21 @@ let RTCStatistics = require('./getRtcStatistics').default;
       }
 
       if (candidates.length > 0) {
-          if (self.parent.host_candidate == null || !candidates.includes(self.parent.host_candidate)) {
+          if (self.host_candidate == null || !candidates.includes(self.host_candidate)) {
               // Prefer IPv4
               for (var i = 0; i < candidates.length; i++) {
                   if (candidates[i].indexOf(':') == -1) {
-                      self.parent.host_candidate = candidates[i];
+                      self.host_candidate = candidates[i];
                       break;
                   }
               }
 
-              if (self.parent.host_candidate == null) {
-                  self.parent.host_candidate = candidates[0];
+              if (self.host_candidate == null) {
+                  self.host_candidate = candidates[0];
               }
           }
 
-          return self.parent.host_candidate.split(',');
+          return self.host_candidate.split(',');
       }
     };
 
@@ -897,21 +886,19 @@ let RTCStatistics = require('./getRtcStatistics').default;
 
     for (var i = 0; i < streams.length; i++) {
         console.log("Stream added", streams[i].id);
-        if (self.parent.recv_audio === false && self.parent.recv_video === false && self.parent.localStream) {
-            self.parent.stream = self.parent.localStream;
+        if (self.recv_audio === false && self.recv_video === false && self.localStream) {
+            self.stream = self.localStream;
         } else {
-            self.parent.stream = streams[i];
+            self.stream = streams[i];
         }
         if (self.state == 'CONNECTED' || self.state == 'UPDATING') {
             if (self.parent.return_media_stream) {
-                self.parent.onConnect(self.parent.stream, self.parent.call_uuid);
-                // self.onConnect(self.parent.stream, self.parent.call_uuid);
-                // console.log('onConnect')
+                self.onConnect(self.stream, self.call_uuid);
+                console.log('Call pcAddStream onConnect 1')
             } else {
                 var url = window.URL || window.webkitURL || window.mozURL;
-                self.parent.onConnect(url.createObjectURL(self.parent.stream), self.parent.call_uuid);
-                // self.onConnect(url.createObjectURL(self.parent.stream), self.parent.call_uuid);
-                // console.log('onConnect')
+                self.onConnect(url.createObjectURL(self.stream), self.call_uuid);
+                console.log('Call pcAddStream onConnect 2', self.stream, self.call_uuid)
             }
         }
         self.state = 'CONNECTED';
@@ -920,31 +907,33 @@ let RTCStatistics = require('./getRtcStatistics').default;
 
   Call.prototype.ackReceived = function () {
       var self = this;
-      if (self.parent.firefox_ver > 43 && self.parent.call_type == 'screen' && !self.parent.stream) {
+      if (self.firefox_ver > 43 && self.call_type == 'screen' && !self.stream) {
           // Firefox does not add a stream/track for outbound screensharing
-          self.parent.onConnect(null, self.parent.call_uuid);
-        //   self.onConnect(null, self.parent.call_uuid);
+          self.onConnect(null, self.call_uuid);
       } else if (self.state == 'CONNECTED' || self.state == 'UPDATING') {
           if (self.parent.return_media_stream) {
-            self.parent.onConnect(self.parent.stream, self.parent.call_uuid);
-            // self.onConnect(self.parent.stream, self.parent.call_uuid);
+            self.onConnect(self.stream, self.call_uuid);
           } else {
               var url = window.URL || window.webkitURL || window.mozURL;
-              self.parent.onConnect(url.createObjectURL(self.parent.stream), self.parent.call_uuid);
-            // self.onConnect(url.createObjectURL(self.parent.stream), self.parent.call_uuid);
+            self.onConnect(url.createObjectURL(self.stream), self.call_uuid);
           }
       }
       self.state = 'CONNECTED';
   }
 
-  Call.prototype.disconnect = function (cb) {
+  Call.prototype.disconnect = function (cb, save_call) {
     var self = this;
     if(self.state != 'DISCONNECTING'){
         self.state = 'DISCONNECTING';
-        rtcPort.Call_disconnect(cb);
-        rtcPort.releaseToken(self.parent.token)
-        tool.init('localVideo', null)
-        tool.init('remoteVideo', null)
+        if(self.parent.token) {
+            self.Call_disconnect(cb);
+            // rtcPort.releaseToken(self.parent.token)
+        }
+        // tool.init('localVideo', null)
+        // tool.init('remoteVideo', null)
+    }
+    if(!save_call) {
+        self.cleanup()
     }
   }
 
@@ -1017,23 +1006,6 @@ let RTCStatistics = require('./getRtcStatistics').default;
     return self.stats.getStats();
   }
 
-  Call.prototype.cleanup = function () {
-    var self = this;
-    if (self.localStream) {
-        console.log("Releasing user media");
-        if (self.call_type === 'screen' || (self.parent && !self.parent.user_media_stream)) {
-            var tracks = self.localStream.getTracks();
-            for (var i=0;i<tracks.length;i++) {
-                tracks[i].stop();
-            }
-        }
-        self.localStream = null;
-    }
-    if (self.pc && self.pc.signalingState != 'closed') {
-        self.pc.close();
-    }
-  }
-
   Call.prototype.remoteDisconnect = function (msg) {
     var self = this;
     if (self.state != 'DISCONNECTING') {
@@ -1063,12 +1035,19 @@ let RTCStatistics = require('./getRtcStatistics').default;
     }
   }
 
-  Call.prototype.update = function (call_type) {
+Call.prototype.update = function (call_type) {
     var self = this;
 
     if (self.state == 'CONNECTED') {
         self.state = 'UPDATING';
         self.cleanupAudioContext();
+        if (self.safari_ver > 603 && self.stream) {
+            var tracks = self.stream.getTracks();
+            for (var i=0; i<tracks.length; i++) {
+                tracks[i].stop();
+                self.stream.removeTrack(tracks[i]);
+            }
+        }
         if (self.localStream) {
             var tracks = self.localStream.getTracks();
             for (var i=0;i<tracks.length;i++) {
@@ -1076,7 +1055,7 @@ let RTCStatistics = require('./getRtcStatistics').default;
                 self.localStream.removeTrack(tracks[i]);
             }
             self.localStream = undefined;
-            if (self.firefox_ver > 47) {
+            if (self.firefox_ver > 47 || self.safari_ver > 603) {
                 var senders = self.pc.getSenders();
                 for (var i=0; i<senders.length; i++) {
                     self.pc.removeTrack(senders[i]);
@@ -1090,9 +1069,9 @@ let RTCStatistics = require('./getRtcStatistics').default;
         }
         self.makeCall(self.parent, call_type);
     }
-  }
+}
 
-  Call.prototype.holdresume = function(setting) {
+Call.prototype.holdresume = function(setting) {
     var self = this;
 
     self.onHold = setting;
@@ -1174,4 +1153,107 @@ Call.prototype.cleanup = function() {
         self.parent.event_event(self.pc, self.parent.conference, 'fabricTerminated');
     }
 };
-export default new Call()
+Call.prototype.handleError = function (err) {
+    var self = this;
+    if (self.state != 'DISCONNECTING') {
+        self.state = 'DISCONNECTING';
+        self.cleanup();
+        if (self.onError) {
+            if (self.call_type == 'presentation' || self.call_type == 'screen') {
+                self.onError(err);
+            } else {
+                if (err.hasOwnProperty('message')) {
+                    err = err.message;
+                }
+                self.onError(self.parent.trans.ERROR_CALL_FAILED + err);
+            }
+        }
+    }
+}
+
+
+/******************************************************************************/ 
+  Call.prototype.Call_calls = function (state, sdp, cb) {
+    var self = this;
+    console.log('Call_calls======', self.call_uuid, self.parent )
+    var request = state == 'UPDATING' ? 'calls/' + self.call_uuid + '/update' : 'calls';
+    self.sendRequestCall(request, sdp, function(e){
+      cb(e)
+    })
+  }
+  Call.prototype.Call_ack = function(cb) {
+    var self = this;
+    // console.log("Remote description active");
+  
+    // if (self.parent.recv_audio === false && self.parent.recv_video === false && self.parent.chrome_ver > 47 && self.parent.localStream) {
+    //   peerConnection.pcAddStream([self.parent.localStream]);
+    // }
+    self.sendRequestCall('calls/' + self.call_uuid + '/ack', null, function() {
+      // TODO
+      cb();
+    });
+  }
+  Call.prototype.Call_disconnect = function (cb) {
+    var self = this;
+    console.log('Call_disconnect', self.call_uuid, self)
+    self.sendRequestCall('calls/' + self.call_uuid + '/disconnect', {}, cb);
+  }
+  Call.prototype.sendRequestCall = function(request, params, cb, retries) {
+    var self = this;
+    // Only do async if explicitly asked
+    var async = cb === false ? false : true;
+    var xhr = new XMLHttpRequest();
+    var xhrUrl = "https://" + self.parent.node + "/api/client/v2/conferences/" + self.parent.conference_uri + "/participants/" + self.parent.uuid + "/" + request;
+    console.log("callPortCall.sendRequest", request, params, xhrUrl);
+    xhr.open("POST", xhrUrl, async);
+    if (cb) {
+      xhr.onload = cb;
+    }
+    if (retries === undefined) {
+      retries = 0;
+    }
+    xhr.onerror = function() {
+      if (++retries > 10 || cb === false) {
+          console.error("Error sending request: " + request);
+      } else {
+          setTimeout(function() { rtcPort.sendRequest(request, params, cb, retries); }, retries * 500);
+      }
+    };
+    xhr.ontimeout = function() {
+        if (++retries > 10 || cb === false) {
+          console.error("Timeout sending request: " + request);
+        } else {
+          setTimeout(function() { rtcPort.sendRequest(request, params, cb, retries); }, retries * 500);
+        }
+    };
+    /*xhr.withCredentials = true;*/
+    if (tool.getCookie('JwtToken')) {
+      xhr.setRequestHeader("JwtToken", tool.getCookie('JwtToken'));
+    }
+    if (self.parent.token) {
+        xhr.setRequestHeader('token', self.parent.token);
+    } else if (self.parent.pin !== null) {
+        xhr.setRequestHeader('pin', self.parent.pin);
+    }
+    // if (self.parent.basic_username && self.parent.basic_password) {
+    //     xhr.setRequestHeader('Authorization', 'Basic ' + Base64.encode(self.parent.basic_username + ':' + self.parent.basic_password));
+    // }
+    if (params) {
+        xhr.setRequestHeader('Content-type', 'application/json');
+        xhr.send(JSON.stringify(params));
+    } else {
+        xhr.send();
+    }
+    if (cb === false) {
+        console.log("callPortCall.sendRequest response", xhr.responseText);
+        var msg = {};
+        try {
+            msg = JSON.parse(xhr.responseText);
+        } catch (error) {
+            msg.reason = xhr.status + " " + xhr.statusText;
+        }
+        msg.http_status = xhr.status;
+        return msg;
+    }
+  }
+export default Call

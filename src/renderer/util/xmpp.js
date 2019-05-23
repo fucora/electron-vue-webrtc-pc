@@ -199,7 +199,7 @@ export const xmpp = {
     },
     // 断开xmpp连接
     disConnectXmpp(){
-        // this.isKicked = true;
+        this.isKicked = true;
         if (XMPPData.connected) {
             XMPPData.connection.disconnect();
             XMPPData.connection = null;

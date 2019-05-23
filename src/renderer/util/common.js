@@ -1,4 +1,5 @@
 import store from '../store/index.js';
+// import { tokenService } from '../util/tokenService';
 export const common = {
     /* 登录时设置需要本地存储的数据 */
     loginSetData(resData) {
@@ -22,6 +23,7 @@ export const common = {
             'xmppServer': resData.xmppServer,
             'xmppUsername': resData.xmppUsername
         };
+        this.setLocstorage('xmppCookieData', xmppCookieData);
         $cookies.set('xmppCookieData', JSON.stringify(xmppCookieData)); // 连接xmpp相关数据
         store.dispatch("asyncXmppData", xmppCookieData);
         
@@ -37,6 +39,8 @@ export const common = {
             store.dispatch('userCookies/asynSetCookies', item)
         })
         this.setLocstorage('uc_access_token', resData.access_token)
+        this.setLocstorage('uc_refresh_token', resData.refresh_token)
+        this.setLocstorage('uc_expires_in', resData.expires_in);
         this.setLocstorage('uc_isLogin', true)
         this.setLocstorage('uc_loginData', resData);
         // localStorage.setItem('uc_loginData', JSON.stringify(resData)); // 保存返回信息
@@ -124,6 +128,7 @@ export const common = {
     // 清空
     deleAllLocstorage(){
         localStorage.clear()
-    }
+    },
+    
     
 }
